@@ -1,3 +1,5 @@
 feedparser
 pandas
 openpyxl
+nltk
+scikit-learn
