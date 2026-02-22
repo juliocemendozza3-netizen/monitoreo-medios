@@ -1,7 +1,6 @@
 import feedparser
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime
 import os
 import json
@@ -32,8 +31,11 @@ CHAT_ID = "8006599024"
 
 # ---------------- TELEGRAM ----------------
 def enviar_telegram(mensaje):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": mensaje})
+    try:
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        requests.post(url, data={"chat_id": CHAT_ID, "text": mensaje}, timeout=10)
+    except:
+        print("Telegram no respondió")
 
 # ---------------- CLASIFICACION ----------------
 def clasificar(texto):
@@ -60,6 +62,10 @@ def recolectar():
 # ---------------- GOOGLE SHEETS ----------------
 def guardar_en_sheets(df):
     creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
+    if not creds_json:
+        print("No hay credenciales")
+        return
+
     info = json.loads(creds_json)
 
     scopes = [
@@ -74,6 +80,9 @@ def guardar_en_sheets(df):
     sh = client.open_by_key(sheet_id)
     ws = sh.sheet1
 
+    # 🔴 ARREGLO CLAVE: convertir todo a texto
+    df = df.astype(str)
+
     ws.clear()
     ws.update([df.columns.values.tolist()] + df.values.tolist())
 
@@ -85,6 +94,10 @@ def main():
     enviar_telegram("🤖 Monitoreo ejecutado correctamente")
 
     df = recolectar()
+    if df.empty:
+        print("No hay noticias")
+        return
+
     df["temas"] = df["titulo"].apply(clasificar)
 
     crisis = (
