@@ -2,60 +2,21 @@ import feedparser
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
-import requests
+from datetime import datetime
 import os
 import json
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+import gspread
+from google.oauth2.service_account import Credentials
 
-def subir_a_drive(nombre_archivo):
-    creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
-    print("Credenciales Drive detectadas:", bool(creds_json))
-
-    if not creds_json:
-        print("No hay credenciales de Drive")
-        return
-
-    info = json.loads(creds_json)
-    creds = service_account.Credentials.from_service_account_info(
-        info,
-        scopes=["https://www.googleapis.com/auth/drive"]
-    )
-
-    servicio = build("drive", "v3", credentials=creds)
-
-    # ID de la carpeta de Drive
-    folder_id = "d/1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY/edit?gid=0#gid=0"
-
-    archivo_metadata = {
-        "name": nombre_archivo,
-        "parents": [folder_id]
-    }
-
-    media = MediaFileUpload(nombre_archivo, resumable=True)
-
-    servicio.files().create(
-        body=archivo_metadata,
-        media_body=media,
-        fields="id"
-    ).execute()
-
-    print("Archivo subido a Drive correctamente")
-    print("Archivo subido a Drive")
-
+# ---------------- FUENTES ----------------
 FUENTES = {
     "El Tiempo": "https://www.eltiempo.com/rss/colombia.xml",
     "El Espectador": "https://www.elespectador.com/rss/colombia/",
     "Semana": "https://www.semana.com/rss",
     "Caracol Radio": "https://caracol.com.co/rss/",
     "Blu Radio": "https://www.bluradio.com/rss.xml",
-    "RCN Radio": "https://www.rcnradio.com/rss",  
-    "Google News Colombia": "https://news.google.com/rss?hl=es-419&gl=CO&ceid=CO:es-419",
-    "Google Paz": "https://news.google.com/rss/search?q=acuerdo+de+paz+colombia&hl=es-419&gl=CO&ceid=CO:es-419",
-    "Google Protestas": "https://news.google.com/rss/search?q=protestas+colombia&hl=es-419&gl=CO&ceid=CO:es-419",
-    "Google JEP": "https://news.google.com/rss/search?q=JEP+colombia&hl=es-419&gl=CO&ceid=CO:es-419",
+    "RCN Radio": "https://www.rcnradio.com/rss",
+    "Google News Colombia": "https://news.google.com/rss?hl=es-419&gl=CO&ceid=CO:es-419"
 }
 
 TOPICOS = {
@@ -66,24 +27,24 @@ TOPICOS = {
     "Drogas": ["cultivos ilícitos", "narcotráfico"],
 }
 
-TOKEN = "8006599024:AAGrWiOsP5TvwMnAay6h1bSxlMPNzahPosM"
-CHAT_ID = "8006599024"
+TOKEN = "AQUI_TU_TOKEN"
+CHAT_ID = "AQUI_TU_CHAT_ID"
 
-
+# ---------------- TELEGRAM ----------------
 def enviar_telegram(mensaje):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    data = {"chat_id": CHAT_ID, "text": mensaje}
-    requests.post(url, data=data)
+    requests.post(url, data={"chat_id": CHAT_ID, "text": mensaje})
 
-
+# ---------------- CLASIFICACION ----------------
 def clasificar(texto):
-    texto = texto.lower()
+    texto = str(texto).lower()
     temas = []
     for t, palabras in TOPICOS.items():
         if any(p in texto for p in palabras):
             temas.append(t)
     return temas if temas else ["Otros"]
 
+# ---------------- RECOLECCION RSS ----------------
 def recolectar():
     noticias = []
     for medio, url in FUENTES.items():
@@ -95,46 +56,30 @@ def recolectar():
                 "fecha": datetime.now()
             })
     return pd.DataFrame(noticias)
-def recolectar_portadas():
-    urls = {
-        "El Tiempo portada": "https://www.eltiempo.com/",
-        "Semana portada": "https://www.semana.com/",
-        "El Espectador portada": "https://www.elespectador.com/"
-    }
 
-    noticias = []
+# ---------------- GOOGLE SHEETS ----------------
+def guardar_en_sheets(df):
+    creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
+    info = json.loads(creds_json)
 
-    for medio, url in urls.items():
-        try:
-            r = requests.get(url, timeout=10)
-            soup = BeautifulSoup(r.text, "html.parser")
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
 
-            titulares = soup.find_all("h2")[:10]
+    creds = Credentials.from_service_account_info(info, scopes=scopes)
+    client = gspread.authorize(creds)
 
-            for t in titulares:
-                texto = t.get_text(strip=True)
-                if texto:
-                    noticias.append({
-                        "medio": medio,
-                        "titulo": texto,
-                        "fecha": datetime.now()
-                    })
-        except:
-            pass
+    sheet_id = "AQUI_TU_ID_DE_SHEET"
+    sh = client.open_by_key(sheet_id)
+    ws = sh.sheet1
 
-    return pd.DataFrame(noticias)
-    noticias = []
-    for medio, url in FUENTES.items():
-        feed = feedparser.parse(url)
-        for e in feed.entries:
-            noticias.append({
-                "medio": medio,
-                "titulo": e.title,
-                "fecha": datetime.now()
-            })
-    return pd.DataFrame(noticias)
+    ws.clear()
+    ws.update([df.columns.values.tolist()] + df.values.tolist())
 
+    print("Datos actualizados en Google Sheets")
 
+# ---------------- MAIN ----------------
 def main():
     print("Iniciando monitoreo...")
     enviar_telegram("🤖 Monitoreo ejecutado correctamente")
@@ -157,11 +102,10 @@ def main():
         )
 
     df.to_excel("monitoreo.xlsx", index=False)
+    guardar_en_sheets(df)
 
-guardar_en_sheets(df)
+    print("Monitoreo terminado correctamente")
 
-print("Monitoreo terminado correctamente")
-
-
+# ---------------- RUN ----------------
 if __name__ == "__main__":
     main()
