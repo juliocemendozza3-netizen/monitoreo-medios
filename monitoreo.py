@@ -1,4 +1,7 @@
-!pip install feedparser pandas
+if __name__ == "__main__":
+    print("Iniciando monitoreo...")
+    main()
+    print("Monitoreo terminado")
 
 import feedparser
 import pandas as pd
