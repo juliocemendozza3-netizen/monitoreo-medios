@@ -9,7 +9,11 @@ FUENTES = {
     "Semana": "https://www.semana.com/rss",
     "Caracol Radio": "https://caracol.com.co/rss/",
     "Blu Radio": "https://www.bluradio.com/rss.xml",
-    "RCN Radio": "https://www.rcnradio.com/rss",
+    "RCN Radio": "https://www.rcnradio.com/rss",  
+    "Google News Colombia": "https://news.google.com/rss?hl=es-419&gl=CO&ceid=CO:es-419",
+    "Google Paz": "https://news.google.com/rss/search?q=acuerdo+de+paz+colombia&hl=es-419&gl=CO&ceid=CO:es-419",
+    "Google Protestas": "https://news.google.com/rss/search?q=protestas+colombia&hl=es-419&gl=CO&ceid=CO:es-419",
+    "Google JEP": "https://news.google.com/rss/search?q=JEP+colombia&hl=es-419&gl=CO&ceid=CO:es-419",
 }
 
 TOPICOS = {
