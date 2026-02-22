@@ -11,12 +11,12 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 def subir_a_drive(nombre_archivo):
-  creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
-print("Credenciales Drive detectadas:", bool(creds_json))
+    creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
+    print("Credenciales Drive detectadas:", bool(creds_json))
 
-if not creds_json:
-    print("No hay credenciales de Drive")
-    return
+    if not creds_json:
+        print("No hay credenciales de Drive")
+        return
 
     info = json.loads(creds_json)
     creds = service_account.Credentials.from_service_account_info(
