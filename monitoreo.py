@@ -1,5 +1,7 @@
 import feedparser
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import requests
 
@@ -44,6 +46,35 @@ def clasificar(texto):
 
 
 def recolectar():
+    df_portadas = recolectar_portadas()
+df = pd.concat([df, df_portadas], ignore_index=True)
+    urls = {
+        "El Tiempo portada": "https://www.eltiempo.com/",
+        "Semana portada": "https://www.semana.com/",
+        "El Espectador portada": "https://www.elespectador.com/",
+    }
+
+    noticias = []
+
+    for medio, url in urls.items():
+        try:
+            r = requests.get(url, timeout=10)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+            titulares = soup.find_all("h2")[:10]
+
+            for t in titulares:
+                texto = t.get_text(strip=True)
+                if texto:
+                    noticias.append({
+                        "medio": medio,
+                        "titulo": texto,
+                        "fecha": datetime.now()
+                    })
+        except:
+            pass
+
+    return pd.DataFrame(noticias)
     noticias = []
     for medio, url in FUENTES.items():
         feed = feedparser.parse(url)
