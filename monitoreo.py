@@ -52,10 +52,13 @@ def recolectar():
     for medio, url in FUENTES.items():
         feed = feedparser.parse(url)
         for e in feed.entries:
-            noticias.append({
-                "medio": medio,
-                "titulo": e.title,
-                "fecha": datetime.now()
+noticias.append({
+    "medio": medio,
+    "titulo": e.title,
+    "link": e.link,
+    "fecha": datetime.now()
+})
+})
             })
     return pd.DataFrame(noticias)
 
