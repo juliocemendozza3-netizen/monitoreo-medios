@@ -117,6 +117,7 @@ def main():
         )
 
     df.to_excel("monitoreo.xlsx", index=False)
+    subir_a_drive("monitoreo.xlsx")
     print("Monitoreo terminado correctamente")
 
 
