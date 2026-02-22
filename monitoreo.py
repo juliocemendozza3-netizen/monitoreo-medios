@@ -44,7 +44,17 @@ def clasificar(texto):
             temas.append(t)
     return temas if temas else ["Otros"]
 
-
+def recolectar():
+    noticias = []
+    for medio, url in FUENTES.items():
+        feed = feedparser.parse(url)
+        for e in feed.entries:
+            noticias.append({
+                "medio": medio,
+                "titulo": e.title,
+                "fecha": datetime.now()
+            })
+    return pd.DataFrame(noticias)
 def recolectar_portadas():
     urls = {
         "El Tiempo portada": "https://www.eltiempo.com/",
