@@ -52,13 +52,11 @@ def recolectar():
     for medio, url in FUENTES.items():
         feed = feedparser.parse(url)
         for e in feed.entries:
-noticias.append({
-    "medio": medio,
-    "titulo": e.title,
-    "link": e.link,
-    "fecha": datetime.now()
-})
-})
+            noticias.append({
+                "medio": medio,
+                "titulo": e.title,
+                "link": e.link,
+                "fecha": datetime.now()
             })
     return pd.DataFrame(noticias)
 
@@ -83,7 +81,6 @@ def guardar_en_sheets(df):
     sh = client.open_by_key(sheet_id)
     ws = sh.sheet1
 
-    # 🔴 ARREGLO CLAVE: convertir todo a texto
     df = df.astype(str)
 
     ws.clear()
