@@ -27,7 +27,7 @@ def subir_a_drive(nombre_archivo):
     servicio = build("drive", "v3", credentials=creds)
 
     # ID de la carpeta de Drive
-    folder_id = "PEGA_AQUI_TU_ID"
+    folder_id = "11yiJ3Ywtm588qDRX477v3YnK9nIBb2v1"
 
     archivo_metadata = {
         "name": nombre_archivo,
