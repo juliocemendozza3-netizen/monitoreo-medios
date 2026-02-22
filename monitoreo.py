@@ -45,13 +45,11 @@ def clasificar(texto):
     return temas if temas else ["Otros"]
 
 
-def recolectar():
-    df_portadas = recolectar_portadas()
-df = pd.concat([df, df_portadas], ignore_index=True)
+def recolectar_portadas():
     urls = {
         "El Tiempo portada": "https://www.eltiempo.com/",
         "Semana portada": "https://www.semana.com/",
-        "El Espectador portada": "https://www.elespectador.com/",
+        "El Espectador portada": "https://www.elespectador.com/"
     }
 
     noticias = []
