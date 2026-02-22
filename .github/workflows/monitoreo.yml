@@ -23,4 +23,9 @@ jobs:
 
       - name: Ejecutar monitoreo
         run: python monitoreo.py
+              - name: Guardar reportes
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-monitoreo
+          path: "*.xlsx"
         
