@@ -70,7 +70,7 @@ def guardar_en_sheets(df):
     creds = Credentials.from_service_account_info(info, scopes=scopes)
     client = gspread.authorize(creds)
 
-    sheet_id = "1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY/edit?gid=0#gid=0"
+    sheet_id = "1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY"
     sh = client.open_by_key(sheet_id)
     ws = sh.sheet1
 
