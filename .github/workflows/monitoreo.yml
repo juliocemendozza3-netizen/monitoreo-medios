@@ -21,8 +21,10 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Ejecutar monitoreo
-        run: python monitoreo.py
+      - - name: Ejecutar monitoreo
+  env:
+    GOOGLE_DRIVE_JSON: ${{ secrets.GOOGLE_DRIVE_JSON }}
+  run: python monitoreo.py
 
       - name: Guardar reportes
         uses: actions/upload-artifact@v4
