@@ -84,8 +84,8 @@ def clasificar(texto):
             temas.append(t)
     return temas if temas else ["Otros"]
 
-df = recolectar()
-guardar_en_sheets(df)
+def recolectar():
+    noticias = []
     for medio, url in FUENTES.items():
         feed = feedparser.parse(url)
         for e in feed.entries:
