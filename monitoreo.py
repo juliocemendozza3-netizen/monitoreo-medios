@@ -26,16 +26,23 @@ def subir_a_drive(nombre_archivo):
 
     servicio = build("drive", "v3", credentials=creds)
 
+    # ID de la carpeta de Drive
+    folder_id = "PEGA_AQUI_TU_ID"
+
     archivo_metadata = {
-    "name": nombre_archivo,
-    "parents": ["11yiJ3Ywtm588qDRX477v3YnK9nIBb2v1"]
-}
+        "name": nombre_archivo,
+        "parents": [folder_id]
+    }
+
+    media = MediaFileUpload(nombre_archivo, resumable=True)
+
     servicio.files().create(
         body=archivo_metadata,
         media_body=media,
         fields="id"
     ).execute()
 
+    print("Archivo subido a Drive correctamente")
     print("Archivo subido a Drive")
 
 FUENTES = {
