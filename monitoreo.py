@@ -26,9 +26,10 @@ def subir_a_drive(nombre_archivo):
 
     servicio = build("drive", "v3", credentials=creds)
 
-    archivo_metadata = {"name": nombre_archivo}
-    media = MediaFileUpload(nombre_archivo, resumable=True)
-
+    archivo_metadata = {
+    "name": nombre_archivo,
+    "parents": ["11yiJ3Ywtm588qDRX477v3YnK9nIBb2v1"]
+}
     servicio.files().create(
         body=archivo_metadata,
         media_body=media,
