@@ -26,7 +26,7 @@ TOPICOS = {
     "Drogas": ["cultivos ilícitos", "narcotráfico"],
 }
 
-TOKEN = "TU_TOKEN_AQUI"
+TOKEN = "8006599024:AAGrWiOsP5TvwMnAay6h1bSxlMPNzahPosM"
 CHAT_ID = "TU_CHAT_ID_AQUI"
 
 
