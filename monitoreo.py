@@ -214,7 +214,6 @@ vista_riesgo.to_excel("vista_minable_riesgo.xlsx", index=False)
 
 print("Vistas minables exportadas correctamente")
 
-!pip install nltk scikit-learn
 
 import re
 import nltk
