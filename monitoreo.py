@@ -97,6 +97,7 @@ def recolectar_portadas():
 
 def main():
     print("Iniciando monitoreo...")
+    enviar_telegram("🤖 Monitoreo ejecutado correctamente")
 
     df = recolectar()
     df["temas"] = df["titulo"].apply(clasificar)
