@@ -4,6 +4,36 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import requests
+import os
+import json
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+def subir_a_drive(nombre_archivo):
+    creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
+    if not creds_json:
+        print("No hay credenciales de Drive")
+        return
+
+    info = json.loads(creds_json)
+    creds = service_account.Credentials.from_service_account_info(
+        info,
+        scopes=["https://www.googleapis.com/auth/drive"]
+    )
+
+    servicio = build("drive", "v3", credentials=creds)
+
+    archivo_metadata = {"name": nombre_archivo}
+    media = MediaFileUpload(nombre_archivo, resumable=True)
+
+    servicio.files().create(
+        body=archivo_metadata,
+        media_body=media,
+        fields="id"
+    ).execute()
+
+    print("Archivo subido a Drive")
 
 FUENTES = {
     "El Tiempo": "https://www.eltiempo.com/rss/colombia.xml",
