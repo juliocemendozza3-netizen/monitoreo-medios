@@ -18,14 +18,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Instalar librerías
+      - name: Instalar dependencias
         run: pip install -r requirements.txt
 
       - name: Ejecutar monitoreo
         run: python monitoreo.py
-              - name: Guardar reportes
+
+      - name: Guardar reportes
         uses: actions/upload-artifact@v4
         with:
           name: reportes-monitoreo
           path: "*.xlsx"
-        
