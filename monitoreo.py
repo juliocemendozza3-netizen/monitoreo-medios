@@ -27,8 +27,8 @@ TOPICOS = {
     "Drogas": ["cultivos ilícitos", "narcotráfico"],
 }
 
-TOKEN = "AQUI_TU_TOKEN"
-CHAT_ID = "AQUI_TU_CHAT_ID"
+TOKEN = "8006599024:AAGrWiOsP5TvwMnAay6h1bSxlMPNzahPosM"
+CHAT_ID = "8006599024"
 
 # ---------------- TELEGRAM ----------------
 def enviar_telegram(mensaje):
@@ -70,7 +70,7 @@ def guardar_en_sheets(df):
     creds = Credentials.from_service_account_info(info, scopes=scopes)
     client = gspread.authorize(creds)
 
-    sheet_id = "AQUI_TU_ID_DE_SHEET"
+    sheet_id = "1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY/edit?gid=0#gid=0"
     sh = client.open_by_key(sheet_id)
     ws = sh.sheet1
 
