@@ -27,7 +27,7 @@ TOPICOS = {
 }
 
 TOKEN = "8006599024:AAGrWiOsP5TvwMnAay6h1bSxlMPNzahPosM"
-CHAT_ID = "TU_CHAT_ID_AQUI"
+CHAT_ID = "8006599024"
 
 
 def enviar_telegram(mensaje):
