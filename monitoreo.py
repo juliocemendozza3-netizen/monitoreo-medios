@@ -35,6 +35,13 @@ ACTORES = [
     "senado", "alcalde", "gobernador", "partido", "oposición"
 ]
 
+# ---------------- TONO NEGATIVO ----------------
+PALABRAS_NEGATIVAS = [
+    "crisis", "denuncia", "escándalo", "polémica",
+    "ataque", "violencia", "corrupción", "irregular",
+    "investigación", "conflicto", "paro", "protesta"
+]
+
 TOKEN = "8006599024:AAGrWiOsP5TvwMnAay6h1bSxlMPNzahPosM"
 CHAT_ID = "8006599024"
 
@@ -57,6 +64,13 @@ def detectar_actores(texto):
     texto = str(texto).lower()
     encontrados = [a for a in ACTORES if a in texto]
     return ", ".join(encontrados) if encontrados else ""
+
+# ---------------- TONO ----------------
+def detectar_tono(texto):
+    texto = str(texto).lower()
+    if any(p in texto for p in PALABRAS_NEGATIVAS):
+        return "NEGATIVO"
+    return "NEUTRO"
 
 # ---------------- RECOLECCION ----------------
 def recolectar():
@@ -108,16 +122,12 @@ def main():
     if df.empty:
         return
 
-    # Clasificar temas
     df["temas"] = df["titulo"].apply(clasificar)
-
-    # 🔴 FILTRO: eliminar irrelevantes
     df = df[df["temas"].apply(lambda x: x != ["Otros"])]
 
-    # Detectar actores políticos
     df["actores"] = df["titulo"].apply(detectar_actores)
+    df["tono"] = df["titulo"].apply(detectar_tono)
 
-    # Calcular menciones
     crisis = (
         df.explode("temas")
         .groupby("temas")
