@@ -5,16 +5,19 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   monitoreo:
     runs-on: ubuntu-latest
 
     steps:
       - name: Descargar repositorio
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Instalar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -25,9 +28,3 @@ jobs:
         env:
           GOOGLE_DRIVE_JSON: ${{ secrets.GOOGLE_DRIVE_JSON }}
         run: python monitoreo.py
-
-      - name: Guardar reportes
-        uses: actions/upload-artifact@v4
-        with:
-          name: reportes-monitoreo
-          path: "*.xlsx"
