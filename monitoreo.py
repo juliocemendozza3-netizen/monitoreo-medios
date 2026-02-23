@@ -18,13 +18,22 @@ FUENTES = {
     "Google News Colombia": "https://news.google.com/rss?hl=es-419&gl=CO&ceid=CO:es-419"
 }
 
+# ---------------- TEMAS INSTITUCIONALES ----------------
 TOPICOS = {
-    "Víctimas": ["víctima", "reparación"],
-    "JEP": ["jep", "justicia especial"],
-    "Protesta social": ["protesta", "manifestación"],
-    "Firmantes de paz": ["excombatiente", "firmante"],
+    "Víctimas": ["víctima", "reparación", "unidad de víctimas"],
+    "JEP": ["jep", "jurisdicción especial"],
+    "Protesta social": ["protesta", "paro", "movilización"],
+    "Firmantes de paz": ["excombatiente", "reincorporación"],
     "Drogas": ["cultivos ilícitos", "narcotráfico"],
+    "Seguridad": ["ataque", "homicidio", "masacre", "violencia", "grupos armados"],
+    "Política": ["gobierno", "congreso", "ministro", "presidente", "senado"]
 }
+
+# ---------------- ACTORES POLÍTICOS ----------------
+ACTORES = [
+    "petro", "gobierno", "congreso", "fiscalía", "corte", "ministro",
+    "senado", "alcalde", "gobernador", "partido", "oposición"
+]
 
 TOKEN = "8006599024:AAGrWiOsP5TvwMnAay6h1bSxlMPNzahPosM"
 CHAT_ID = "8006599024"
@@ -40,13 +49,16 @@ def enviar_telegram(mensaje):
 # ---------------- CLASIFICACION ----------------
 def clasificar(texto):
     texto = str(texto).lower()
-    temas = []
-    for t, palabras in TOPICOS.items():
-        if any(p in texto for p in palabras):
-            temas.append(t)
+    temas = [t for t, palabras in TOPICOS.items() if any(p in texto for p in palabras)]
     return temas if temas else ["Otros"]
 
-# ---------------- RECOLECCION RSS ----------------
+# ---------------- ACTORES ----------------
+def detectar_actores(texto):
+    texto = str(texto).lower()
+    encontrados = [a for a in ACTORES if a in texto]
+    return ", ".join(encontrados) if encontrados else ""
+
+# ---------------- RECOLECCION ----------------
 def recolectar():
     noticias = []
     for medio, url in FUENTES.items():
@@ -82,7 +94,6 @@ def guardar_en_sheets(df):
     ws = sh.sheet1
 
     df = df.astype(str)
-
     ws.clear()
     ws.update([df.columns.values.tolist()] + df.values.tolist())
 
@@ -95,16 +106,23 @@ def main():
 
     df = recolectar()
     if df.empty:
-        print("No hay noticias")
         return
 
+    # Clasificar temas
     df["temas"] = df["titulo"].apply(clasificar)
 
+    # 🔴 FILTRO: eliminar irrelevantes
+    df = df[df["temas"].apply(lambda x: x != ["Otros"])]
+
+    # Detectar actores políticos
+    df["actores"] = df["titulo"].apply(detectar_actores)
+
+    # Calcular menciones
     crisis = (
         df.explode("temas")
-          .groupby("temas")
-          .size()
-          .reset_index(name="menciones")
+        .groupby("temas")
+        .size()
+        .reset_index(name="menciones")
     )
 
     alertas = crisis[crisis["menciones"] >= 5]
