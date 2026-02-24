@@ -25,41 +25,28 @@ FUENTES = {
     "El Espectador": "https://www.elespectador.com/rss/colombia/",
     "Semana": "https://www.semana.com/rss",
     "Infobae": "https://www.infobae.com/america/colombia/rss.xml",
-    "Google News Colombia": "https://news.google.com/rss/search?q=colombia&hl=es-419&gl=CO&ceid=CO:es-419",
-    "Caracol Radio": "https://caracol.com.co/rss/",
-    "Blu Radio": "https://www.bluradio.com/rss.xml",
-    "RCN Radio": "https://www.rcnradio.com/rss",
-    "Portafolio": "https://www.portafolio.co/files/rss/colombia.xml",
-    "La República": "https://www.larepublica.co/rss/colombia"
+    "Google News Colombia": "https://news.google.com/rss/search?q=colombia&hl=es-419&gl=CO&ceid=CO:es-419"
 }
 
-# ---------------- CIUDADES ----------------
+# ---------------- DICCIONARIOS ----------------
 CIUDADES = {
     "Bogotá":["bogotá","bogota"],
     "Medellín":["medellín","medellin","antioquia"],
     "Cali":["cali","valle del cauca"],
     "Barranquilla":["barranquilla","atlántico"],
-    "Cartagena":["cartagena","bolívar"],
-    "Bucaramanga":["bucaramanga","santander"],
-    "Cúcuta":["cúcuta","norte de santander"],
-    "Pasto":["pasto","nariño"],
-    "Manizales":["manizales","caldas"],
-    "Pereira":["pereira","risaralda"],
-    "Ibagué":["ibagué","tolima"],
-    "Villavicencio":["villavicencio","meta"]
+    "Cartagena":["cartagena","bolívar"]
 }
 
-# ---------------- PALABRAS ----------------
 TOPICOS = {
     "Seguridad":["homicidio","masacre","violencia","ataque"],
     "Política":["gobierno","congreso","presidente","reforma","ley"],
     "Protesta":["protesta","paro","manifestación","marchas"]
 }
 
-ACTORES = ["petro","gobierno","congreso","fiscalía","ministro","senado"]
+ACTORES = ["petro","gobierno","congreso","fiscalía","ministro"]
 NEGATIVAS = ["crisis","escándalo","corrupción","violencia","conflicto"]
 
-# ---------------- FUNCIONES TEXTO ----------------
+# ---------------- TEXTO ----------------
 def limpiar_titulo(t):
     return " ".join(str(t).replace("\n"," ").split())
 
@@ -76,11 +63,6 @@ def detectar_ciudad(t):
         if any(x in t for x in p):
             return c
     return "Nacional"
-
-def es_colombia(t):
-    t=str(t).lower()
-    claves=["colombia","bogotá","medellín","cali","barranquilla","cartagena"]
-    return any(x in t for x in claves)
 
 def clasificar(t):
     t=str(t).lower()
@@ -111,7 +93,60 @@ def recolectar():
     df.drop_duplicates(subset=["titulo"], inplace=True)
     return df
 
-# ---------------- GUARDAR SHEETS ESTABLE ----------------
+# ---------------- DASHBOARD ----------------
+def dashboard(client, df):
+
+    try:
+        sh=client.open_by_key("1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY")
+
+        try:
+            ws=sh.worksheet("Dashboard")
+            ws.clear()
+        except:
+            ws=sh.add_worksheet(title="Dashboard",rows="50",cols="10")
+
+        total=len(df)
+        negativas=len(df[df["tono"]=="NEGATIVO"])
+
+        top_ciudades=df["ciudad"].value_counts().head(5)
+        top_temas=df["temas"].str.split(", ").explode().value_counts().head(5)
+
+        data=[
+            ["RESUMEN"],
+            ["Total noticias",total],
+            ["Negativas",negativas],
+            [],
+            ["TOP CIUDADES"]
+        ]
+
+        for c,v in top_ciudades.items():
+            data.append([c,v])
+
+        data.append([])
+        data.append(["TOP TEMAS"])
+
+        for t,v in top_temas.items():
+            data.append([t,v])
+
+        ws.update(values=data, range_name="A1")
+
+    except Exception as e:
+        enviar_telegram(f"⚠️ Dashboard error: {e}")
+
+# ---------------- INDICE RIESGO ----------------
+def indice_riesgo(df):
+    if df.empty: return
+    total=len(df)
+    neg=len(df[df["tono"]=="NEGATIVO"])
+    ratio=neg/total if total>0 else 0
+
+    if ratio<0.15: nivel="🟢 BAJO"
+    elif ratio<0.35: nivel="🟡 PRESIÓN"
+    else: nivel="🔴 CRISIS"
+
+    enviar_telegram(f"📊 Índice mediático\nNoticias:{total}\nNegativas:{neg}\nNivel:{nivel}")
+
+# ---------------- GUARDAR ----------------
 def guardar_en_sheets(df):
 
     creds_json=os.environ.get("GOOGLE_DRIVE_JSON")
@@ -124,9 +159,8 @@ def guardar_en_sheets(df):
         scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
     )
 
-    ws=gspread.authorize(creds).open_by_key(
-        "1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY"
-    ).sheet1
+    client=gspread.authorize(creds)
+    ws=client.open_by_key("1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY").sheet1
 
     columnas=["medio","titulo","link","fecha","ciudad","temas","actores","tono"]
 
@@ -135,8 +169,6 @@ def guardar_en_sheets(df):
             df[c]=""
 
     df=df[columnas]
-
-    # 🔴 LIMPIEZA DEFINITIVA ANTI JSON ERROR
     df=df.replace([float("inf"),float("-inf")],"")
     df=df.fillna("")
     df=df.astype(str)
@@ -152,24 +184,9 @@ def guardar_en_sheets(df):
         df=pd.concat([old,df],ignore_index=True)
 
     df.drop_duplicates(subset=["titulo"], inplace=True)
-
     ws.update(values=[columnas]+df.values.tolist(), range_name="A1")
 
-# ---------------- ANALISIS ----------------
-def alertas(df):
-    if df.empty: return
-    act=df["actores"].str.split(", ").explode().value_counts()
-    if not act.empty and act.iloc[0]>=8:
-        enviar_telegram(f"⚠️ Actor dominante: {act.index[0]}")
-
-def resumen(df):
-    if df.empty: return
-    top=df["temas"].str.split(", ").explode().value_counts().head(3)
-    msg="📊 Agenda reciente:\n"
-    for t,v in top.items():
-        if t!="Otros":
-            msg+=f"• {t}: {v}\n"
-    enviar_telegram(msg)
+    dashboard(client, df)
 
 # ---------------- MAIN ----------------
 def main():
@@ -186,17 +203,15 @@ def main():
         axis=1
     )
 
-    df=df[df["titulo"].apply(es_colombia)]
     df["ciudad"]=df["titulo"].apply(detectar_ciudad)
     df["temas"]=df["titulo"].apply(clasificar)
     df["actores"]=df["titulo"].apply(actores)
     df["tono"]=df["titulo"].apply(tono)
 
     guardar_en_sheets(df)
-    alertas(df)
-    resumen(df)
+    indice_riesgo(df)
 
-    enviar_telegram("✅ Monitoreo actualizado")
+    enviar_telegram("✅ Monitoreo actualizado con dashboard y riesgo")
 
 if __name__=="__main__":
     main()
