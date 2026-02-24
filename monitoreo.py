@@ -134,22 +134,21 @@ def guardar_en_sheets(df):
 
 # ---------------- MAIN ----------------
 def main():
+
     enviar_telegram("🤖 Monitoreo ejecutado")
 
     df = recolectar()
 
-# Avisar cuántas noticias se recolectaron
-enviar_telegram(f"🧭 Se recolectaron {len(df)} noticias del RSS")
+    enviar_telegram(f"🧭 Se recolectaron {len(df)} noticias del RSS")
 
-# Si no hay noticias, avisar y salir
-if df.empty:
-    enviar_telegram("⚠️ No se encontraron noticias nuevas")
-    return
+    if df.empty:
+        enviar_telegram("⚠️ No se encontraron noticias nuevas")
+        return
 
-# Clasificación
-df[["temas","relevancia"]] = df["titulo"].apply(
-    lambda x: pd.Series(clasificar(x))
-)
+    # Clasificación
+    df[["temas","relevancia"]] = df["titulo"].apply(
+        lambda x: pd.Series(clasificar(x))
+    )
 
     df["actores"] = df["titulo"].apply(detectar_actores)
     df["tono"] = df["titulo"].apply(detectar_tono)
@@ -164,11 +163,12 @@ df[["temas","relevancia"]] = df["titulo"].apply(
 
     # Alertas
     alertas = df[df["nivel"]=="CRITICO"]
-    if len(alertas) >= 5:
+    if len(alertas) > 0:
         enviar_telegram(f"🚨 {len(alertas)} noticias críticas detectadas")
 
     guardar_en_sheets(df)
-    print("Monitoreo terminado")
+
+    enviar_telegram("✅ Monitoreo terminado correctamente")
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
