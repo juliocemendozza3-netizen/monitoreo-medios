@@ -117,10 +117,29 @@ def guardar_en_sheets(df):
 
     df = df.astype(str)
 
-    # Escribir siempre desde A1
-    ws.update("A1", [df.columns.values.tolist()] + df.values.tolist())
+    # ---- LEER DATOS EXISTENTES ----
+    datos_existentes = ws.get_all_values()
 
-    enviar_telegram(f"📊 Sheets actualizado con {len(df)} noticias")
+    if datos_existentes:
+        encabezados = datos_existentes[0]
+        filas = datos_existentes[1:]
+        df_existente = pd.DataFrame(filas, columns=encabezados)
+    else:
+        df_existente = pd.DataFrame()
+
+    # ---- UNIR DATOS ----
+    if not df_existente.empty:
+        df_total = pd.concat([df_existente, df], ignore_index=True)
+    else:
+        df_total = df.copy()
+
+    # ---- ELIMINAR DUPLICADOS POR TITULO ----
+    df_total.drop_duplicates(subset=["titulo"], inplace=True)
+
+    # ---- ESCRIBIR TODO DE NUEVO ----
+    ws.update("A1", [df_total.columns.values.tolist()] + df_total.values.tolist())
+
+    enviar_telegram(f"📊 Sheets acumulado con {len(df_total)} noticias")
 
 # ---------------- MAIN ----------------
 def main():
