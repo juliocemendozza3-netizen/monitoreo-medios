@@ -109,7 +109,7 @@ def recolectar():
                 "medio": medio,
                 "titulo": e.title,
                 "link": e.link,
-                "fecha": datetime.now()
+                "fecha": datetime.now(ZoneInfo("America/Bogota"))
             })
     df = pd.DataFrame(noticias)
     df.drop_duplicates(subset=["titulo"], inplace=True)
