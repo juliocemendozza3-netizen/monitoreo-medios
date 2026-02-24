@@ -67,14 +67,22 @@ def limpiar_titulo(texto):
     texto = " ".join(texto.split())
     return texto
 
-# ---------------- MEDIO REAL DESDE GOOGLE NEWS ----------------
-def detectar_medio_real(titulo, medio):
+# ---------------- MEDIO REAL + TITULO LIMPIO ----------------
+def procesar_google_news(titulo, medio):
+
+    titulo = limpiar_titulo(titulo)
+
     if medio != "Google News Colombia":
-        return medio
+        return medio, titulo
+
+    # Formato típico: "Titular - Medio"
     if " - " in titulo:
-        partes = titulo.split(" - ")
-        return partes[-1].strip()
-    return medio
+        partes = titulo.rsplit(" - ", 1)
+        titulo_limpio = partes[0].strip()
+        medio_real = partes[1].strip()
+        return medio_real, titulo_limpio
+
+    return medio, titulo
 
 # ---------------- CLASIFICACION ----------------
 def clasificar(texto):
@@ -169,12 +177,9 @@ def main():
         enviar_telegram("⚠️ No se encontraron noticias nuevas")
         return
 
-    # limpiar títulos
-    df["titulo"] = df["titulo"].apply(limpiar_titulo)
-
-    # detectar medio real si viene de Google News
-    df["medio"] = df.apply(
-        lambda r: detectar_medio_real(r["titulo"], r["medio"]),
+    # ---- LIMPIAR GOOGLE NEWS ----
+    df[["medio","titulo"]] = df.apply(
+        lambda r: pd.Series(procesar_google_news(r["titulo"], r["medio"])),
         axis=1
     )
 
