@@ -66,10 +66,11 @@ CHAT_ID = "5522007396"
 # ---------------- TELEGRAM ----------------
 def enviar_telegram(mensaje):
     try:
-        url = f"https://api.telegram.org/bot{8036539281:AAHPbw_8qPHJoONYFY0fgB0yqj6lsH3YuM8}/sendMessage"
-        requests.post(url, data={"chat_id": 5522007396, "text": mensaje}, timeout=10)
-    except:
-        print("Telegram no respondió")
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        r = requests.post(url, data={"chat_id": CHAT_ID, "text": mensaje}, timeout=10)
+        print("Telegram:", r.status_code, r.text)
+    except Exception as e:
+        print("Telegram error:", e)
 
 # ---------------- CLASIFICACION ----------------
 def clasificar(texto):
