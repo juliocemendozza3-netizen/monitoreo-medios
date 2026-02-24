@@ -7,7 +7,7 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-# ---------------- FUENTES ----------------
+# ---------------- FUENTES AMPLIADAS ----------------
 FUENTES = {
     "El Tiempo": "https://www.eltiempo.com/rss/colombia.xml",
     "El Espectador": "https://www.elespectador.com/rss/colombia/",
@@ -15,35 +15,64 @@ FUENTES = {
     "Caracol Radio": "https://caracol.com.co/rss/",
     "Blu Radio": "https://www.bluradio.com/rss.xml",
     "RCN Radio": "https://www.rcnradio.com/rss",
+    "Infobae": "https://www.infobae.com/america/colombia/rss.xml",
+    "Portafolio": "https://www.portafolio.co/files/rss/colombia.xml",
+    "La República": "https://www.larepublica.co/rss/colombia",
     "Google News Colombia": "https://news.google.com/rss?hl=es-419&gl=CO&ceid=CO:es-419"
 }
 
-# ---------------- TEMAS INSTITUCIONALES ----------------
+# ---------------- TEMAS AMPLIADOS ----------------
 TOPICOS = {
-    "Víctimas": ["víctima", "reparación", "unidad de víctimas"],
-    "JEP": ["jep", "jurisdicción especial"],
-    "Protesta social": ["protesta", "paro", "movilización"],
-    "Firmantes de paz": ["excombatiente", "reincorporación"],
-    "Drogas": ["cultivos ilícitos", "narcotráfico"],
-    "Seguridad": ["ataque", "homicidio", "masacre", "violencia", "grupos armados"],
-    "Política": ["gobierno", "congreso", "ministro", "presidente", "senado"]
+    "Víctimas": [
+        "víctima", "reparación", "unidad de víctimas",
+        "conflicto armado", "desplazados", "memoria histórica"
+    ],
+    "JEP": [
+        "jep", "jurisdicción especial", "justicia transicional",
+        "tribunal de paz", "acuerdo de paz", "verdad"
+    ],
+    "Protesta social": [
+        "protesta", "paro", "movilización",
+        "manifestación", "bloqueo", "marchas"
+    ],
+    "Firmantes de paz": [
+        "excombatiente", "reincorporación",
+        "firmantes", "desmovilizados", "farc"
+    ],
+    "Drogas": [
+        "cultivos ilícitos", "narcotráfico",
+        "coca", "erradicación", "droga"
+    ],
+    "Seguridad": [
+        "ataque", "homicidio", "masacre",
+        "violencia", "grupos armados",
+        "asesinato", "enfrentamiento"
+    ],
+    "Política": [
+        "gobierno", "congreso", "ministro",
+        "presidente", "senado", "reforma",
+        "ley", "debate político"
+    ]
 }
 
-# ---------------- ACTORES POLÍTICOS ----------------
+# ---------------- ACTORES ----------------
 ACTORES = [
-    "petro", "gobierno", "congreso", "fiscalía", "corte", "ministro",
-    "senado", "alcalde", "gobernador", "partido", "oposición"
+    "petro", "gobierno", "congreso", "fiscalía",
+    "corte", "ministro", "senado",
+    "alcalde", "gobernador", "partido",
+    "oposición", "presidente"
 ]
 
 # ---------------- TONO NEGATIVO ----------------
 PALABRAS_NEGATIVAS = [
     "crisis", "denuncia", "escándalo", "polémica",
-    "ataque", "violencia", "corrupción", "irregular",
-    "investigación", "conflicto", "paro", "protesta"
+    "ataque", "violencia", "corrupción",
+    "irregular", "investigación",
+    "conflicto", "paro", "protesta"
 ]
 
-TOKEN = "8006599024:AAGrWiOsP5TvwMnAay6h1bSxlMPNzahPosM"
-CHAT_ID = "8006599024"
+TOKEN = "8036539281:AAHPbw_8qPHJoONYFY0fgB0yqj6lsH3YuM8"
+CHAT_ID = "5522007396"
 
 # ---------------- TELEGRAM ----------------
 def enviar_telegram(mensaje):
@@ -57,13 +86,13 @@ def enviar_telegram(mensaje):
 def clasificar(texto):
     texto = str(texto).lower()
     temas = [t for t, palabras in TOPICOS.items() if any(p in texto for p in palabras)]
-    return temas if temas else ["Otros"]
+    return ", ".join(temas) if temas else "Otros"
 
 # ---------------- ACTORES ----------------
 def detectar_actores(texto):
     texto = str(texto).lower()
     encontrados = [a for a in ACTORES if a in texto]
-    return ", ".join(encontrados) if encontrados else ""
+    return ", ".join(encontrados)
 
 # ---------------- TONO ----------------
 def detectar_tono(texto):
@@ -84,7 +113,9 @@ def recolectar():
                 "link": e.link,
                 "fecha": datetime.now()
             })
-    return pd.DataFrame(noticias)
+    df = pd.DataFrame(noticias)
+    df.drop_duplicates(subset=["titulo"], inplace=True)
+    return df
 
 # ---------------- GOOGLE SHEETS ----------------
 def guardar_en_sheets(df):
@@ -116,25 +147,19 @@ def guardar_en_sheets(df):
 # ---------------- MAIN ----------------
 def main():
     print("Iniciando monitoreo...")
-    enviar_telegram("🤖 Monitoreo ejecutado correctamente")
+    enviar_telegram("🤖 Monitoreo ejecutado")
 
     df = recolectar()
     if df.empty:
+        print("No se recolectaron noticias")
         return
 
     df["temas"] = df["titulo"].apply(clasificar)
-    df = df[df["temas"].apply(lambda x: x != ["Otros"])]
-
     df["actores"] = df["titulo"].apply(detectar_actores)
     df["tono"] = df["titulo"].apply(detectar_tono)
 
-    crisis = (
-        df.explode("temas")
-        .groupby("temas")
-        .size()
-        .reset_index(name="menciones")
-    )
-
+    # Alertas temáticas
+    crisis = df[df["temas"] != "Otros"].groupby("temas").size().reset_index(name="menciones")
     alertas = crisis[crisis["menciones"] >= 5]
 
     for _, r in alertas.iterrows():
