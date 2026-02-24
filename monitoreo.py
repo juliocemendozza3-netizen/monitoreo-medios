@@ -63,32 +63,24 @@ TOKEN = "TU_TOKEN"
 CHAT_ID = "TU_CHAT"
 
 # ---------------- TELEGRAM ----------------
-def enviar_telegram(mensaje):
+def enviar_telegram(msg):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        requests.post(url, data={"chat_id": CHAT_ID, "text": mensaje}, timeout=10)
-    except Exception as e:
-        print("Telegram error:", e)
+        requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
+    except:
+        pass
 
-# ---------------- LIMPIAR TITULO ----------------
+# ---------------- UTILIDADES ----------------
 def limpiar_titulo(texto):
     return " ".join(str(texto).replace("\n"," ").split())
 
-# ---------------- GOOGLE NEWS LIMPIO ----------------
 def procesar_google_news(titulo, medio):
-
     titulo = limpiar_titulo(titulo)
-
-    if medio != "Google News Colombia":
-        return medio, titulo
-
-    if " - " in titulo:
-        partes = titulo.rsplit(" - ", 1)
+    if medio == "Google News Colombia" and " - " in titulo:
+        partes = titulo.rsplit(" - ",1)
         return partes[1].strip(), partes[0].strip()
-
     return medio, titulo
 
-# ---------------- DETECTAR CIUDAD ----------------
 def detectar_ciudad(texto):
     texto = str(texto).lower()
     for ciudad, palabras in CIUDADES.items():
@@ -96,13 +88,11 @@ def detectar_ciudad(texto):
             return ciudad
     return "Nacional"
 
-# ---------------- FILTRO COLOMBIA ----------------
 def es_colombia(texto):
     texto = str(texto).lower()
     claves = ["colombia","bogotá","medellín","cali","barranquilla","cartagena"]
     return any(p in texto for p in claves)
 
-# ---------------- CLASIFICACION ----------------
 def clasificar(texto):
     texto = str(texto).lower()
     temas = [t for t,pal in TOPICOS.items() if any(p in texto for p in pal)]
@@ -118,78 +108,84 @@ def detectar_tono(texto):
 
 # ---------------- RECOLECCION ----------------
 def recolectar():
-    noticias = []
-    for medio, url in FUENTES.items():
-        feed = feedparser.parse(url)
+    noticias=[]
+    for medio,url in FUENTES.items():
+        feed=feedparser.parse(url)
         for e in feed.entries:
             noticias.append({
-                "medio": medio,
-                "titulo": e.title,
-                "link": e.link,
-                "fecha": datetime.now(ZoneInfo("America/Bogota"))
+                "medio":medio,
+                "titulo":e.title,
+                "link":e.link,
+                "fecha":datetime.now(ZoneInfo("America/Bogota")).strftime("%Y-%m-%d %H:%M")
             })
-    df = pd.DataFrame(noticias)
+    df=pd.DataFrame(noticias)
     df.drop_duplicates(subset=["titulo"], inplace=True)
     return df
 
-# ---------------- GOOGLE SHEETS ----------------
+# ---------------- GOOGLE SHEETS ESTABLE ----------------
 def guardar_en_sheets(df):
 
-    creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
+    creds_json=os.environ.get("GOOGLE_DRIVE_JSON")
     if not creds_json:
-        enviar_telegram("❌ No hay credenciales Google")
+        enviar_telegram("❌ Sin credenciales Google")
         return
 
-    creds = Credentials.from_service_account_info(
+    creds=Credentials.from_service_account_info(
         json.loads(creds_json),
         scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
     )
 
-    client = gspread.authorize(creds)
-    ws = client.open_by_key("1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY").sheet1
+    client=gspread.authorize(creds)
+    ws=client.open_by_key("1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY").sheet1
 
-    df = df.fillna("").astype(str)
+    # 🔴 Forzar mismas columnas siempre
+    columnas=["medio","titulo","link","fecha","ciudad","temas","actores","tono"]
+    for col in columnas:
+        if col not in df.columns:
+            df[col]=""
 
-    existentes = ws.get_all_values()
+    df=df[columnas]
+
+    # 🔴 limpiar valores incompatibles
+    df=df.replace([float("inf"),float("-inf")],"")
+    df=df.fillna("")
+    df=df.astype(str)
+
+    existentes=ws.get_all_values()
+
     if existentes:
-        df_old = pd.DataFrame(existentes[1:], columns=existentes[0])
-        df = pd.concat([df_old, df], ignore_index=True)
+        df_old=pd.DataFrame(existentes[1:], columns=existentes[0])
+        for col in columnas:
+            if col not in df_old.columns:
+                df_old[col]=""
+        df_old=df_old[columnas]
+        df=pd.concat([df_old,df], ignore_index=True)
 
     df.drop_duplicates(subset=["titulo"], inplace=True)
 
-    ws.update(values=[df.columns.tolist()] + df.values.tolist(), range_name="A1")
+    ws.update(values=[columnas]+df.values.tolist(), range_name="A1")
 
 # ---------------- MAIN ----------------
 def main():
 
     enviar_telegram("🤖 Monitoreo ejecutado")
 
-    df = recolectar()
-
+    df=recolectar()
     if df.empty:
-        enviar_telegram("⚠️ No hay noticias")
+        enviar_telegram("⚠️ Sin noticias")
         return
 
-    # limpiar google news
-    df[["medio","titulo"]] = df.apply(
-        lambda r: pd.Series(procesar_google_news(r["titulo"], r["medio"])), axis=1
-    )
-
-    # solo Colombia
-    df = df[df["titulo"].apply(es_colombia)]
-
-    # ciudad
-    df["ciudad"] = df["titulo"].apply(detectar_ciudad)
-
-    # analisis
-    df["temas"] = df["titulo"].apply(clasificar)
-    df["actores"] = df["titulo"].apply(detectar_actores)
-    df["tono"] = df["titulo"].apply(detectar_tono)
+    df[["medio","titulo"]]=df.apply(lambda r: pd.Series(procesar_google_news(r["titulo"],r["medio"])),axis=1)
+    df=df[df["titulo"].apply(es_colombia)]
+    df["ciudad"]=df["titulo"].apply(detectar_ciudad)
+    df["temas"]=df["titulo"].apply(clasificar)
+    df["actores"]=df["titulo"].apply(detectar_actores)
+    df["tono"]=df["titulo"].apply(detectar_tono)
 
     guardar_en_sheets(df)
 
-    enviar_telegram("✅ Monitoreo actualizado con ciudades")
+    enviar_telegram("✅ Monitoreo estable y actualizado")
 
 # ---------------- RUN ----------------
-if __name__ == "__main__":
+if __name__=="__main__":
     main()
