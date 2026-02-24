@@ -2,7 +2,7 @@ import feedparser
 import pandas as pd
 import requests
 from datetime import datetime
-from zoneinfo import ZoneInfo   # 👈 ESTA LÍNEA FALTABA
+from zoneinfo import ZoneInfo
 import os
 import json
 import gspread
@@ -14,36 +14,44 @@ FUENTES = {
     "El Espectador": "https://www.elespectador.com/rss/colombia/",
     "Semana": "https://www.semana.com/rss",
     "Infobae": "https://www.infobae.com/america/colombia/rss.xml",
-    "Google News Colombia": "https://news.google.com/rss?hl=es-419&gl=CO&ceid=CO:es-419",
+    "Google News Colombia": "https://news.google.com/rss/search?q=colombia&hl=es-419&gl=CO&ceid=CO:es-419",
     "Caracol Radio": "https://caracol.com.co/rss/",
     "Blu Radio": "https://www.bluradio.com/rss.xml",
     "RCN Radio": "https://www.rcnradio.com/rss",
     "Portafolio": "https://www.portafolio.co/files/rss/colombia.xml",
-    "La República": "https://www.larepublica.co/rss/colombia",
-    "El Heraldo": "https://www.elheraldo.co/rss.xml",
-    "El Universal": "https://www.eluniversal.com.co/rss.xml",
-    "El Colombiano": "https://www.elcolombiano.com/rss",
-    "El País Cali": "https://www.elpais.com.co/rss.xml",
-    "Vanguardia": "https://www.vanguardia.com/rss",
-    "La Patria": "https://www.lapatria.com/rss.xml",
-    "La Opinión": "https://www.laopinion.com.co/rss.xml"
+    "La República": "https://www.larepublica.co/rss/colombia"
+}
+
+# ---------------- CIUDADES ----------------
+CIUDADES = {
+    "Bogotá":["bogotá","bogota"],
+    "Medellín":["medellín","medellin","antioquia"],
+    "Cali":["cali","valle del cauca"],
+    "Barranquilla":["barranquilla","atlántico"],
+    "Cartagena":["cartagena","bolívar"],
+    "Bucaramanga":["bucaramanga","santander"],
+    "Cúcuta":["cúcuta","norte de santander"],
+    "Pasto":["pasto","nariño"],
+    "Manizales":["manizales","caldas"],
+    "Pereira":["pereira","risaralda"],
+    "Ibagué":["ibagué","tolima"],
+    "Villavicencio":["villavicencio","meta"]
 }
 
 # ---------------- TEMAS ----------------
 TOPICOS = {
-    "Víctimas": ["víctima","reparación","desplazados","memoria histórica"],
-    "JEP": ["jep","justicia transicional","acuerdo de paz","verdad"],
-    "Protesta": ["protesta","paro","manifestación","bloqueo","marchas"],
-    "Firmantes": ["reincorporación","excombatiente","farc"],
-    "Drogas": ["narcotráfico","coca","erradicación","droga"],
-    "Seguridad": ["homicidio","masacre","violencia","ataque","grupos armados"],
-    "Política": ["gobierno","congreso","presidente","reforma","ley"]
+    "Víctimas":["víctima","reparación","desplazados","memoria histórica"],
+    "JEP":["jep","justicia transicional","acuerdo de paz","verdad"],
+    "Protesta":["protesta","paro","manifestación","bloqueo","marchas"],
+    "Firmantes":["reincorporación","excombatiente","farc"],
+    "Drogas":["narcotráfico","coca","erradicación","droga"],
+    "Seguridad":["homicidio","masacre","violencia","ataque"],
+    "Política":["gobierno","congreso","presidente","reforma","ley"]
 }
 
 ACTORES = [
     "petro","gobierno","congreso","fiscalía","corte",
-    "ministro","senado","alcalde","gobernador",
-    "partido","oposición","presidente"
+    "ministro","senado","alcalde","gobernador","partido"
 ]
 
 PALABRAS_NEGATIVAS = [
@@ -51,8 +59,8 @@ PALABRAS_NEGATIVAS = [
     "investigación","conflicto","violencia"
 ]
 
-TOKEN = "8036539281:AAHPbw_8qPHJoONYFY0fgB0yqj6lsH3YuM8"
-CHAT_ID = "5522007396"
+TOKEN = "TU_TOKEN"
+CHAT_ID = "TU_CHAT"
 
 # ---------------- TELEGRAM ----------------
 def enviar_telegram(mensaje):
@@ -64,9 +72,7 @@ def enviar_telegram(mensaje):
 
 # ---------------- LIMPIAR TITULO ----------------
 def limpiar_titulo(texto):
-    texto = str(texto).replace("\n"," ").strip()
-    texto = " ".join(texto.split())
-    return texto
+    return " ".join(str(texto).replace("\n"," ").split())
 
 # ---------------- GOOGLE NEWS LIMPIO ----------------
 def procesar_google_news(titulo, medio):
@@ -78,18 +84,29 @@ def procesar_google_news(titulo, medio):
 
     if " - " in titulo:
         partes = titulo.rsplit(" - ", 1)
-        titulo_limpio = partes[0].strip()
-        medio_real = partes[1].strip()
-        return medio_real, titulo_limpio
+        return partes[1].strip(), partes[0].strip()
 
     return medio, titulo
+
+# ---------------- DETECTAR CIUDAD ----------------
+def detectar_ciudad(texto):
+    texto = str(texto).lower()
+    for ciudad, palabras in CIUDADES.items():
+        if any(p in texto for p in palabras):
+            return ciudad
+    return "Nacional"
+
+# ---------------- FILTRO COLOMBIA ----------------
+def es_colombia(texto):
+    texto = str(texto).lower()
+    claves = ["colombia","bogotá","medellín","cali","barranquilla","cartagena"]
+    return any(p in texto for p in claves)
 
 # ---------------- CLASIFICACION ----------------
 def clasificar(texto):
     texto = str(texto).lower()
     temas = [t for t,pal in TOPICOS.items() if any(p in texto for p in pal)]
-    relevancia = "INSTITUCIONAL" if temas else "GENERAL"
-    return ", ".join(temas) if temas else "Otros", relevancia
+    return ", ".join(temas) if temas else "Otros"
 
 def detectar_actores(texto):
     texto = str(texto).lower()
@@ -123,40 +140,24 @@ def guardar_en_sheets(df):
         enviar_telegram("❌ No hay credenciales Google")
         return
 
-    info = json.loads(creds_json)
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
+    creds = Credentials.from_service_account_info(
+        json.loads(creds_json),
+        scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+    )
 
-    creds = Credentials.from_service_account_info(info, scopes=scopes)
     client = gspread.authorize(creds)
-
-    sheet_id = "1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY"
-    sh = client.open_by_key(sheet_id)
-    ws = sh.sheet1
-
-    enviar_telegram("📄 Conectado a Google Sheets")
+    ws = client.open_by_key("1Lq0tTUSnsBAoJ7OClP8DsdvPcNuCI3Fdviup-gBAteY").sheet1
 
     df = df.fillna("").astype(str)
 
-    datos_existentes = ws.get_all_values()
+    existentes = ws.get_all_values()
+    if existentes:
+        df_old = pd.DataFrame(existentes[1:], columns=existentes[0])
+        df = pd.concat([df_old, df], ignore_index=True)
 
-    if datos_existentes:
-        encabezados = datos_existentes[0]
-        filas = datos_existentes[1:]
-        df_existente = pd.DataFrame(filas, columns=encabezados)
-        df_total = pd.concat([df_existente, df], ignore_index=True)
-    else:
-        df_total = df.copy()
+    df.drop_duplicates(subset=["titulo"], inplace=True)
 
-    df_total.drop_duplicates(subset=["titulo"], inplace=True)
-    df_total = df_total.fillna("").astype(str)
-
-    ws.update(values=[df_total.columns.values.tolist()] + df_total.values.tolist(),
-              range_name="A1")
-
-    enviar_telegram(f"📊 Sheets acumulado con {len(df_total)} noticias")
+    ws.update(values=[df.columns.tolist()] + df.values.tolist(), range_name="A1")
 
 # ---------------- MAIN ----------------
 def main():
@@ -165,27 +166,29 @@ def main():
 
     df = recolectar()
 
-    enviar_telegram(f"🧭 Se recolectaron {len(df)} noticias")
-
     if df.empty:
-        enviar_telegram("⚠️ No se encontraron noticias nuevas")
+        enviar_telegram("⚠️ No hay noticias")
         return
 
+    # limpiar google news
     df[["medio","titulo"]] = df.apply(
-        lambda r: pd.Series(procesar_google_news(r["titulo"], r["medio"])),
-        axis=1
+        lambda r: pd.Series(procesar_google_news(r["titulo"], r["medio"])), axis=1
     )
 
-    df[["temas","relevancia"]] = df["titulo"].apply(
-        lambda x: pd.Series(clasificar(x))
-    )
+    # solo Colombia
+    df = df[df["titulo"].apply(es_colombia)]
 
+    # ciudad
+    df["ciudad"] = df["titulo"].apply(detectar_ciudad)
+
+    # analisis
+    df["temas"] = df["titulo"].apply(clasificar)
     df["actores"] = df["titulo"].apply(detectar_actores)
     df["tono"] = df["titulo"].apply(detectar_tono)
 
     guardar_en_sheets(df)
 
-    enviar_telegram("✅ Monitoreo terminado correctamente")
+    enviar_telegram("✅ Monitoreo actualizado con ciudades")
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
