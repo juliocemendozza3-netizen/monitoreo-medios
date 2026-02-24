@@ -135,7 +135,7 @@ def guardar_en_sheets(df):
 # ---------------- MAIN ----------------
 def main():
 
-    enviar_telegram("🤖 Monitoreo ejecutado")
+    enviar_telegram("🤖 PRUEBA DESDE GITHUB")
 
     df = recolectar()
 
