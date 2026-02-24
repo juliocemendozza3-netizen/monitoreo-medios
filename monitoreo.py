@@ -2,6 +2,7 @@ import feedparser
 import pandas as pd
 import requests
 from datetime import datetime
+from zoneinfo import ZoneInfo   # 👈 ESTA LÍNEA FALTABA
 import os
 import json
 import gspread
@@ -67,7 +68,7 @@ def limpiar_titulo(texto):
     texto = " ".join(texto.split())
     return texto
 
-# ---------------- MEDIO REAL + TITULO LIMPIO ----------------
+# ---------------- GOOGLE NEWS LIMPIO ----------------
 def procesar_google_news(titulo, medio):
 
     titulo = limpiar_titulo(titulo)
@@ -75,7 +76,6 @@ def procesar_google_news(titulo, medio):
     if medio != "Google News Colombia":
         return medio, titulo
 
-    # Formato típico: "Titular - Medio"
     if " - " in titulo:
         partes = titulo.rsplit(" - ", 1)
         titulo_limpio = partes[0].strip()
@@ -138,9 +138,7 @@ def guardar_en_sheets(df):
 
     enviar_telegram("📄 Conectado a Google Sheets")
 
-    df = df.replace([float("inf"), float("-inf")], "")
-    df = df.fillna("")
-    df = df.astype(str)
+    df = df.fillna("").astype(str)
 
     datos_existentes = ws.get_all_values()
 
@@ -148,10 +146,6 @@ def guardar_en_sheets(df):
         encabezados = datos_existentes[0]
         filas = datos_existentes[1:]
         df_existente = pd.DataFrame(filas, columns=encabezados)
-    else:
-        df_existente = pd.DataFrame()
-
-    if not df_existente.empty:
         df_total = pd.concat([df_existente, df], ignore_index=True)
     else:
         df_total = df.copy()
@@ -177,7 +171,6 @@ def main():
         enviar_telegram("⚠️ No se encontraron noticias nuevas")
         return
 
-    # ---- LIMPIAR GOOGLE NEWS ----
     df[["medio","titulo"]] = df.apply(
         lambda r: pd.Series(procesar_google_news(r["titulo"], r["medio"])),
         axis=1
