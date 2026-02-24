@@ -115,9 +115,12 @@ def guardar_en_sheets(df):
 
     enviar_telegram("📄 Conectado a Google Sheets")
 
+    # -------- LIMPIEZA CRÍTICA --------
+    df = df.replace([float("inf"), float("-inf")], "")
+    df = df.fillna("")
     df = df.astype(str)
 
-    # ---- LEER DATOS EXISTENTES ----
+    # -------- LEER EXISTENTES --------
     datos_existentes = ws.get_all_values()
 
     if datos_existentes:
@@ -127,17 +130,22 @@ def guardar_en_sheets(df):
     else:
         df_existente = pd.DataFrame()
 
-    # ---- UNIR DATOS ----
+    # -------- UNIR --------
     if not df_existente.empty:
         df_total = pd.concat([df_existente, df], ignore_index=True)
     else:
         df_total = df.copy()
 
-    # ---- ELIMINAR DUPLICADOS POR TITULO ----
     df_total.drop_duplicates(subset=["titulo"], inplace=True)
 
-    # ---- ESCRIBIR TODO DE NUEVO ----
-    ws.update("A1", [df_total.columns.values.tolist()] + df_total.values.tolist())
+    # -------- LIMPIEZA FINAL --------
+    df_total = df_total.replace([float("inf"), float("-inf")], "")
+    df_total = df_total.fillna("")
+    df_total = df_total.astype(str)
+
+    # -------- ESCRIBIR --------
+    ws.update(values=[df_total.columns.values.tolist()] + df_total.values.tolist(),
+              range_name="A1")
 
     enviar_telegram(f"📊 Sheets acumulado con {len(df_total)} noticias")
 
