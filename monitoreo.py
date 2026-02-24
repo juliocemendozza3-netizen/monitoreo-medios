@@ -57,7 +57,6 @@ TOPICOS = {
 }
 
 ACTORES = ["petro","gobierno","congreso","fiscalía","ministro","senado"]
-
 NEGATIVAS = ["crisis","escándalo","corrupción","violencia","conflicto"]
 
 # ---------------- FUNCIONES TEXTO ----------------
@@ -112,7 +111,7 @@ def recolectar():
     df.drop_duplicates(subset=["titulo"], inplace=True)
     return df
 
-# ---------------- GUARDAR SHEETS ----------------
+# ---------------- GUARDAR SHEETS ESTABLE ----------------
 def guardar_en_sheets(df):
 
     creds_json=os.environ.get("GOOGLE_DRIVE_JSON")
@@ -136,9 +135,14 @@ def guardar_en_sheets(df):
             df[c]=""
 
     df=df[columnas]
-    df=df.fillna("").astype(str)
+
+    # 🔴 LIMPIEZA DEFINITIVA ANTI JSON ERROR
+    df=df.replace([float("inf"),float("-inf")],"")
+    df=df.fillna("")
+    df=df.astype(str)
 
     existentes=ws.get_all_values()
+
     if existentes:
         old=pd.DataFrame(existentes[1:],columns=existentes[0])
         for c in columnas:
@@ -177,7 +181,11 @@ def main():
         enviar_telegram("⚠️ Sin noticias")
         return
 
-    df[["medio","titulo"]]=df.apply(lambda r: pd.Series(procesar_google_news(r["titulo"],r["medio"])),axis=1)
+    df[["medio","titulo"]]=df.apply(
+        lambda r: pd.Series(procesar_google_news(r["titulo"],r["medio"])),
+        axis=1
+    )
+
     df=df[df["titulo"].apply(es_colombia)]
     df["ciudad"]=df["titulo"].apply(detectar_ciudad)
     df["temas"]=df["titulo"].apply(clasificar)
