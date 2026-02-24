@@ -137,12 +137,19 @@ def main():
     enviar_telegram("🤖 Monitoreo ejecutado")
 
     df = recolectar()
-    if df.empty:
-        return
 
-    df[["temas","relevancia"]] = df["titulo"].apply(
-        lambda x: pd.Series(clasificar(x))
-    )
+# Avisar cuántas noticias se recolectaron
+enviar_telegram(f"🧭 Se recolectaron {len(df)} noticias del RSS")
+
+# Si no hay noticias, avisar y salir
+if df.empty:
+    enviar_telegram("⚠️ No se encontraron noticias nuevas")
+    return
+
+# Clasificación
+df[["temas","relevancia"]] = df["titulo"].apply(
+    lambda x: pd.Series(clasificar(x))
+)
 
     df["actores"] = df["titulo"].apply(detectar_actores)
     df["tono"] = df["titulo"].apply(detectar_tono)
