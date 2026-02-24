@@ -61,6 +61,21 @@ def enviar_telegram(mensaje):
     except Exception as e:
         print("Telegram error:", e)
 
+# ---------------- LIMPIAR TITULO ----------------
+def limpiar_titulo(texto):
+    texto = str(texto).replace("\n"," ").strip()
+    texto = " ".join(texto.split())
+    return texto
+
+# ---------------- MEDIO REAL DESDE GOOGLE NEWS ----------------
+def detectar_medio_real(titulo, medio):
+    if medio != "Google News Colombia":
+        return medio
+    if " - " in titulo:
+        partes = titulo.split(" - ")
+        return partes[-1].strip()
+    return medio
+
 # ---------------- CLASIFICACION ----------------
 def clasificar(texto):
     texto = str(texto).lower()
@@ -92,7 +107,7 @@ def recolectar():
     df.drop_duplicates(subset=["titulo"], inplace=True)
     return df
 
-# ---------------- GOOGLE SHEETS (CORREGIDO) ----------------
+# ---------------- GOOGLE SHEETS ----------------
 def guardar_en_sheets(df):
 
     creds_json = os.environ.get("GOOGLE_DRIVE_JSON")
@@ -115,12 +130,10 @@ def guardar_en_sheets(df):
 
     enviar_telegram("📄 Conectado a Google Sheets")
 
-    # -------- LIMPIEZA CRÍTICA --------
     df = df.replace([float("inf"), float("-inf")], "")
     df = df.fillna("")
     df = df.astype(str)
 
-    # -------- LEER EXISTENTES --------
     datos_existentes = ws.get_all_values()
 
     if datos_existentes:
@@ -130,20 +143,14 @@ def guardar_en_sheets(df):
     else:
         df_existente = pd.DataFrame()
 
-    # -------- UNIR --------
     if not df_existente.empty:
         df_total = pd.concat([df_existente, df], ignore_index=True)
     else:
         df_total = df.copy()
 
     df_total.drop_duplicates(subset=["titulo"], inplace=True)
+    df_total = df_total.fillna("").astype(str)
 
-    # -------- LIMPIEZA FINAL --------
-    df_total = df_total.replace([float("inf"), float("-inf")], "")
-    df_total = df_total.fillna("")
-    df_total = df_total.astype(str)
-
-    # -------- ESCRIBIR --------
     ws.update(values=[df_total.columns.values.tolist()] + df_total.values.tolist(),
               range_name="A1")
 
@@ -161,6 +168,15 @@ def main():
     if df.empty:
         enviar_telegram("⚠️ No se encontraron noticias nuevas")
         return
+
+    # limpiar títulos
+    df["titulo"] = df["titulo"].apply(limpiar_titulo)
+
+    # detectar medio real si viene de Google News
+    df["medio"] = df.apply(
+        lambda r: detectar_medio_real(r["titulo"], r["medio"]),
+        axis=1
+    )
 
     df[["temas","relevancia"]] = df["titulo"].apply(
         lambda x: pd.Series(clasificar(x))
